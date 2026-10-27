@@ -1,0 +1,17 @@
+# 演示模式：不依赖真实 LiveGBS，内置 600 路模拟摄像头
+# 启动：mvn spring-boot:run -Dspring-boot.run.profiles=mock
+camera-status:
+  mock:
+    # 模拟通道数量
+    channels: 600
+    # 单次接口调用的模拟耗时（毫秒），用来观察并发效果
+    latency-ms: 20
+    # 每隔 N 路模拟一次上游 500，用来验证错误隔离；0 表示不模拟
+    fail-every: 0
+    # 每隔 N 路制造一次"平台说在线、实际拉不到流"的假在线；0 表示不模拟
+    false-online-every: 13
+  batch-timeout: 30s
+
+logging:
+  level:
+    com.wy: INFO

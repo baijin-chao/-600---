@@ -1,0 +1,23 @@
+services:
+  livegbs-camera-status:
+    build:
+      context: .
+    image: livegbs-camera-status:1.0.0
+    container_name: livegbs-camera-status
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      LIVEGBS_BASE_URL: ${LIVEGBS_BASE_URL:-http://host.docker.internal:10000}
+      LIVEGBS_USERNAME: ${LIVEGBS_USERNAME:-admin}
+      LIVEGBS_PASSWORD: ${LIVEGBS_PASSWORD:-}
+      CAMERA_STATUS_ADMIN_TOKEN: ${CAMERA_STATUS_ADMIN_TOKEN:-}
+      CAMERA_STATUS_THREADS: ${CAMERA_STATUS_THREADS:-64}
+      CAMERA_STATUS_MAX_CONCURRENCY: ${CAMERA_STATUS_MAX_CONCURRENCY:-32}
+      CAMERA_STATUS_CRON: "${CAMERA_STATUS_CRON:-0 0/10 * * * ?}"
+    extra_hosts:
+      # 让容器能用 host.docker.internal 访问宿主机上的 LiveGBS
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./logs:/app/logs

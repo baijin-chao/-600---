@@ -1,0 +1,109 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /livegbs-camera-status
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  # 优雅停机：先拒绝新请求，再等线程池收敛
+  shutdown: graceful
+
+spring:
+  application:
+    name: livegbs-camera-status
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: 1.0.0
+    description: LiveGBS 摄像头真实取流探测服务
+
+#----------------------------------------------------------------
+# LiveGBS 平台连接信息（务必用环境变量覆盖，不要提交真实密码）
+#----------------------------------------------------------------
+livegbs:
+  # 平台地址，结尾不要带斜杠
+  base-url: ${LIVEGBS_BASE_URL:http://127.0.0.1:10000}
+  username: ${LIVEGBS_USERNAME:admin}
+  # LiveGBS 要求 32 位大写 MD5，例如 md5("your-password")
+  password: ${LIVEGBS_PASSWORD:}
+  # token 缓存时长，略小于平台实际有效期
+  token-ttl: ${LIVEGBS_TOKEN_TTL:20m}
+  # 单次拉取的最大通道数
+  channel-limit: ${LIVEGBS_CHANNEL_LIMIT:100000}
+
+#----------------------------------------------------------------
+# Forest HTTP 客户端
+# 注意：关闭响应内容日志，否则 token 会随 URL 一起落盘
+#----------------------------------------------------------------
+forest:
+  bean-id: forestConfiguration
+  backend: httpclient
+  max-connections: ${FOREST_MAX_CONNECTIONS:2000}
+  max-route-connections: ${FOREST_MAX_ROUTE_CONNECTIONS:500}
+  timeout: 15000
+  connect-timeout: 5000
+  read-timeout: 15000
+  max-retry-count: 0
+  logEnabled: ${FOREST_LOG_ENABLED:false}
+  log-request: false
+  log-response-status: false
+  log-response-content: false
+  variables:
+    # 客户端接口里用 {livegbs_base_url} 引用，避免把地址写死在 @Get 注解上
+    livegbs_base_url: ${livegbs.base-url}
+
+#----------------------------------------------------------------
+# 探测任务
+#----------------------------------------------------------------
+camera-status:
+  # 定时周期，置为 "-" 可关闭定时任务
+  cron: "${CAMERA_STATUS_CRON:0 0/10 * * * ?}"
+  zone: ${CAMERA_STATUS_ZONE:Asia/Shanghai}
+  # 工作线程数
+  thread-count: ${CAMERA_STATUS_THREADS:64}
+  # 同时打到 LiveGBS 的最大并发（与线程数解耦，用于保护下游）
+  max-concurrency: ${CAMERA_STATUS_MAX_CONCURRENCY:64}
+  # 有界队列：满了就快速失败，而不是无限堆任务
+  queue-capacity: ${CAMERA_STATUS_QUEUE:4096}
+  # 等待并发许可的超时
+  permit-wait: 5s
+  # 整批任务的最长等待时间
+  batch-timeout: ${CAMERA_STATUS_BATCH_TIMEOUT:10m}
+  # 写操作（触发探测 / 清空快照）的鉴权 token；留空则不校验
+  admin-token: "${CAMERA_STATUS_ADMIN_TOKEN:}"
+  mock:
+    channels: 600
+    latency-ms: 20
+    fail-every: 0
+
+logging:
+  level:
+    root: INFO
+    com.wy: INFO
+  file:
+    name: logs/${spring.application.name}.log
